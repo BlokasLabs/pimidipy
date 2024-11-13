@@ -61,51 +61,51 @@ MIDI_EVENTS = (
 	)
 
 class PortHandle:
-	proc: Optional["PimidiPy"]
-	port_name: Optional[str]
-	port: Optional[alsa_midi.Port]
-	input: bool
-	refcount: int
+	_proc: Optional["PimidiPy"]
+	_port_name: Optional[str]
+	_port: Optional[alsa_midi.Port]
+	_input: bool
+	_refcount: int
 
 	def __init__(self, proc: "PimidiPy", port_name: str, input: bool):
-		self.proc = proc
-		self.port_name = port_name
-		self.port = None
-		self.input = input
-		self.refcount = 0
+		self._proc = proc
+		self._port_name = port_name
+		self._port = None
+		self._input = input
+		self._refcount = 0
 
 	def _sanity_check(self):
-		if self.proc is None:
-			raise ValueError("The '{}' {} port is closed".format(self.port_name, "Input" if self.input else "Output"))
+		if self._proc is None:
+			raise ValueError("The '{}' {} port is closed".format(self._port_name, "Input" if self._input else "Output"))
 		
-		if self.port is None:
-			stderr.write("The '{}' {} port is currently unavailable.\n".format(self.port_name, "Input" if self.input else "Output"))
+		if self._port is None:
+			stderr.write("The '{}' {} port is currently unavailable.\n".format(self._port_name, "Input" if self._input else "Output"))
 			return -errno.ENODEV
 
 		return 0
 
-	def addref(self):
-		if self.refcount < 0:
+	def _addref(self):
+		if self._refcount < 0:
 			raise ValueError("PortHandle refcount is negative")
-		self.refcount += 1
+		self._refcount += 1
 
 	def close(self):
-		if self.refcount >= 1:
-			self.refcount -= 1
+		if self._refcount >= 1:
+			self._refcount -= 1
 			return
-		elif self.refcount < 0:
+		elif self._refcount < 0:
 			raise ValueError("PortHandle refcount is negative")
 
-		self.proc._unsubscribe_port(self.port_name, self.input)
-		self.port_name = None
-		self.proc = None
+		self._proc._unsubscribe_port(self._port_name, self._input)
+		self._port_name = None
+		self._proc = None
 
 class PortHandleRef:
 	_handle: Optional[PortHandle]
 
 	def __init__(self, handle: PortHandle):
 		self._handle = handle
-		self._handle.addref()
+		self._handle._addref()
 
 	def __del__(self):
 		if self._handle is not None:
@@ -125,15 +125,21 @@ class InputPort(PortHandleRef):
 	def __init__(self, handle: PortHandle):
 		super().__init__(handle)
 
+	def add_callback(self, callback: Callable[[MIDI_EVENTS], None]):
+		self._handle._proc.add_input_callback(self, callback)
+
+	def remove_callback(self, callback: Callable[[MIDI_EVENTS], None]):
+		self._handle._proc.remove_input_callback(self, callback)
+
 class OutputPort(PortHandleRef):
 	def __init__(self, port_handle: PortHandle):
 		super().__init__(port_handle)
 
 	def _write_event(self, event: MIDI_EVENTS):
-		return self._handle.proc.client.event_output_direct(event, port = self._handle.proc.port, dest = self._handle.port)
+		return self._handle._proc._client.event_output_direct(event, port = self._handle._proc._port, dest = self._handle._port)
 
 	def _write_data(self, data: bytearray):
-		return self._handle.proc.client.event_output_direct(MidiBytesEvent(data), port = self._handle.proc.port, dest = self._handle.port)
+		return self._handle._proc._client.event_output_direct(MidiBytesEvent(data), port = self._handle._proc._port, dest = self._handle._port)
 
 	def _do_write(self, fn, drain):
 		err = self._handle._sanity_check()
@@ -143,7 +149,7 @@ class OutputPort(PortHandleRef):
 		result = fn()
 
 		if drain:
-			self._handle.proc.drain_output()
+			self._handle._proc.drain_output()
 
 		return result
 
@@ -153,41 +159,38 @@ class OutputPort(PortHandleRef):
 
 		return self._do_write(partial(self._write_data, event), drain)
 
-	def close(self):
-		super().close()
-
 class PimidiPy:
-	INPUT=0
-	OUTPUT=1
+	_INPUT=0
+	_OUTPUT=1
 
-	processors: Dict[Tuple[int, int], List[object]]
-	client: alsa_midi.SequencerClient
-	port: alsa_midi.Port
-	open_ports: Array[weakref.WeakValueDictionary[str, PortHandle]]
-	port2name: Array[Dict[Tuple[int, int], Set[str]]]
+	_input_callbacks: Dict[Tuple[int, int], List[object]]
+	_client: alsa_midi.SequencerClient
+	_port: alsa_midi.Port
+	_open_ports: Array[weakref.WeakValueDictionary[str, PortHandle]]
+	_port2name: Array[Dict[Tuple[int, int], Set[str]]]
 
 	def __init__(self, client_name: str = "pimidipy"):
-		self.processors = {}
-		self.open_ports = [weakref.WeakValueDictionary(), weakref.WeakValueDictionary()]
-		self.port2name = [defaultdict(set), defaultdict(set)]
-		self.client = alsa_midi.SequencerClient(client_name)
-		self.port = self.client.create_port(
+		self._input_callbacks = {}
+		self._open_ports = [weakref.WeakValueDictionary(), weakref.WeakValueDictionary()]
+		self._port2name = [defaultdict(set), defaultdict(set)]
+		self._client = alsa_midi.SequencerClient(client_name)
+		self._port = self._client.create_port(
 			client_name,
 			caps = alsa_midi.PortCaps.WRITE | alsa_midi.PortCaps.READ | alsa_midi.PortCaps.DUPLEX | alsa_midi.PortCaps.SUBS_READ | alsa_midi.PortCaps.SUBS_WRITE | alsa_midi.PortCaps.NO_EXPORT,
 			type = alsa_midi.PortType.MIDI_GENERIC | alsa_midi.PortType.APPLICATION
 			)
-		self.client.subscribe_port(alsa_midi.SYSTEM_ANNOUNCE, self.port)
+		self._client.subscribe_port(alsa_midi.SYSTEM_ANNOUNCE, self._port)
 
 	def parse_port_name(self, port_name: str) -> Optional[Tuple[int, int]]:
 		addr_p = alsa_midi.ffi.new("snd_seq_addr_t *")
-		result = alsa_midi.alsa.snd_seq_parse_address(self.client.handle, addr_p, port_name.encode())
+		result = alsa_midi.alsa.snd_seq_parse_address(self._client.handle, addr_p, port_name.encode())
 		if result < 0:
 			return None
 		return addr_p.client, addr_p.port
 
 	def _subscribe_port(self, src, dst):
 		try:
-			err = self.client.subscribe_port(src, dst)
+			err = self._client.subscribe_port(src, dst)
 		except Exception as e:
 			err = -1
 		if not err is None and err < 0:
@@ -198,63 +201,63 @@ class PimidiPy:
 		print("Unsubscribing {} port '{}'".format("Input" if input else "Output", port))
 		addr = self.parse_port_name(port)
 		if input:
-			self.client.unsubscribe_port(addr, self.port)
-			self.open_ports[self.INPUT].pop(port)
-			self.processors.pop(port)
+			self._client.unsubscribe_port(addr, self._port)
+			self._open_ports[self._INPUT].pop(port)
+			self._input_callbacks.pop(port)
 		else:
-			self.client.unsubscribe_port(self.port, addr)
-			self.open_ports[self.OUTPUT].pop(port)
+			self._client.unsubscribe_port(self._port, addr)
+			self._open_ports[self._OUTPUT].pop(port)
 
 	def open_input(self, port_name: str):
-		result = self.open_ports[self.INPUT].get(port_name)
+		result = self._open_ports[self._INPUT].get(port_name)
 
 		if result is None:
 			result = PortHandle(self, port_name, True)
-			self.open_ports[self.INPUT][port_name] = result
-			self.processors[port_name] = []
+			self._open_ports[self._INPUT][port_name] = result
+			self._input_callbacks[port_name] = []
 
 			port = self.parse_port_name(port_name)
 			if port is None:
 				stderr.write("Failed to locate Input port by name '{}', will wait for it to appear.\n".format(port_name))
 			else:
-				self.port2name[self.INPUT][port].add(port_name)
-				if not self._subscribe_port(port, self.port):
+				self._port2name[self._INPUT][port].add(port_name)
+				if not self._subscribe_port(port, self._port):
 					stderr.write("Failed to subscribe to Input port '{}'.\n".format(port_name))
 
 		return InputPort(result)
 
 	def open_output(self, port_name: str):
-		result = self.open_ports[self.OUTPUT].get(port_name)
+		result = self._open_ports[self._OUTPUT].get(port_name)
 
 		if result is None:
 			result = PortHandle(self, port_name, False)
-			self.open_ports[self.OUTPUT][port_name] = result
+			self._open_ports[self._OUTPUT][port_name] = result
 
 			port = self.parse_port_name(port_name)
 			if port is None:
 				stderr.write("Failed to locate Output port by name '{}', will wait for it to appear.\n".format(port_name))
 			else:
-				self.port2name[self.OUTPUT][port].add(port_name)
-				if not self._subscribe_port(self.port, port):
+				self._port2name[self._OUTPUT][port].add(port_name)
+				if not self._subscribe_port(self._port, port):
 					stderr.write("Failed to subscribe to Output port '{}'.\n".format(port_name))
 				else:
-					result.port = port
+					result._port = port
 
 		return OutputPort(result)
 
-	def register_processor(self, input_port : InputPort, processor : Callable[[alsa_midi.Event], None]):
-		if input_port is None or processor is None or input_port._handle is None or input_port._handle.port_name is None:
-			raise ValueError("Invalid input_port or processor")
+	def add_input_callback(self, input_port : InputPort, callback : Callable[[MIDI_EVENTS], None]):
+		if input_port is None or callback is None or input_port._handle is None or input_port._handle._port_name is None:
+			raise ValueError("Invalid input_port or callback")
 
-		self.processors[input_port._handle.port_name].append(processor)
+		self._input_callbacks[input_port._handle._port_name].append(callback)
 
-	def unregister_processor(self, input_port : InputPort, processor : Callable[[alsa_midi.Event], None]):
-		if input_port is None or processor is None or input_port._handle is None or input_port._handle.port_name is None:
-			raise ValueError("Invalid input_port or processor")
-		self.processors[input_port._handle.port_name].remove(processor)
+	def remove_input_callback(self, input_port : InputPort, callback : Callable[[MIDI_EVENTS], None]):
+		if input_port is None or callback is None or input_port._handle is None or input_port._handle._port_name is None:
+			raise ValueError("Invalid input_port or callback")
+		self._input_callbacks[input_port._handle._port_name].remove(callback)
 
 	def drain_output(self):
-		self.client.drain_output()
+		self._client.drain_output()
 
 	def quit(self):
 		self.done = True
@@ -263,37 +266,37 @@ class PimidiPy:
 		self.done = False
 		while not self.done:
 			try:
-				event = self.client.event_input()
+				event = self._client.event_input()
 				match event.type:
 					case alsa_midi.EventType.PORT_START:
 						for i in range(2):
-							for name, port in self.open_ports[i].items():
+							for name, port in self._open_ports[i].items():
 								parsed = self.parse_port_name(name)
 								if parsed == event.addr:
-									if parsed not in self.port2name[i]:
-										print("Reopening {} port '{}'".format("Input" if i == self.INPUT else "Output", event.addr))
-										if i == self.INPUT:
-											self._subscribe_port(parsed, self.port)
+									if parsed not in self._port2name[i]:
+										print("Reopening {} port '{}'".format("Input" if i == self._INPUT else "Output", event.addr))
+										if i == self._INPUT:
+											self._subscribe_port(parsed, self._port)
 										else:
-											self._subscribe_port(self.port, parsed)
+											self._subscribe_port(self._port, parsed)
 										port.port = parsed
-									print("Adding alias '{}' for {} port '{}'".format(name, "Input" if i == self.INPUT else "Output", event.addr))
-									self.port2name[i][parsed].add(name)
+									print("Adding alias '{}' for {} port '{}'".format(name, "Input" if i == self._INPUT else "Output", event.addr))
+									self._port2name[i][parsed].add(name)
 					case alsa_midi.EventType.PORT_EXIT:
 						for i in range(2):
-							for name, port in self.open_ports[i].items():
+							for name, port in self._open_ports[i].items():
 								parsed = self.parse_port_name(name)
 								if parsed == event.addr:
 									port.port = None
-							if event.addr in self.port2name[i]:
-								print("{} port '{}' disappeared.".format("Input" if i == self.INPUT else "Output", event.addr))
-								self.port2name[i].pop(event.addr)
+							if event.addr in self._port2name[i]:
+								print("{} port '{}' disappeared.".format("Input" if i == self._INPUT else "Output", event.addr))
+								self._port2name[i].pop(event.addr)
 					case MIDI_EVENTS:
-						port_name_set = self.port2name[self.INPUT].get(event.source, None)
+						port_name_set = self._port2name[self._INPUT].get(event.source, None)
 						if port_name_set is not None:
 							for port_name in port_name_set:
-								if port_name in self.open_ports[self.INPUT] and port_name in self.processors:
-									for processor in self.processors[port_name]:
-										processor(to_pimidipy_event(event))
+								if port_name in self._open_ports[self._INPUT] and port_name in self._input_callbacks:
+									for callback in self._input_callbacks[port_name]:
+										callback(to_pimidipy_event(event))
 			except KeyboardInterrupt:
 				self.done = True
