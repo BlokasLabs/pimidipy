@@ -1,15 +1,15 @@
-from .pimidipy import PimidiPy, InputPort, OutputPort
-from alsa_midi import (
-	NoteOnEvent as NoteOnEventBase,
-	NoteOffEvent as NoteOffEventBase,
+from .event_wrappers import (
+	EventType,
+	NoteOnEvent,
+	NoteOffEvent,
 	ControlChangeEvent,
-	KeyPressureEvent as AftertouchEvent,
+	AftertouchEvent,
 	ProgramChangeEvent,
 	ChannelPressureEvent,
 	PitchBendEvent,
 	Control14BitChangeEvent,
-	NonRegisteredParameterChangeEvent as NRPNChangeEvent,
-	RegisteredParameterChangeEvent as RPNChangeEvent,
+	NRPNChangeEvent,
+	RPNChangeEvent,
 	SongPositionPointerEvent,
 	SongSelectEvent,
 	TimeSignatureEvent,
@@ -21,14 +21,7 @@ from alsa_midi import (
 	TuneRequestEvent,
 	ResetEvent,
 	ActiveSensingEvent,
-	SysExEvent
+	SysExEvent,
+	MidiBytesEvent,
 )
-
-# Fix up argument ordering to match the rest of the event constructors.
-class NoteOnEvent(NoteOnEventBase):
-	def __init__(self, channel: int, note: int, velocity: int):
-		super().__init__(channel = channel, note = note, velocity = velocity)
-
-class NoteOffEvent(NoteOffEventBase):
-	def __init__(self, channel: int, note: int, velocity: int):
-		super().__init__(channel = channel, note = note, velocity = velocity)
+from .pimidipy import PimidiPy, InputPort, OutputPort
