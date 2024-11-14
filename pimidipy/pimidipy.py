@@ -16,7 +16,7 @@
 from collections import defaultdict
 from ctypes import Array
 from functools import partial
-from typing import Dict, List, Optional, Set, Tuple, Callable
+from typing import Dict, List, Optional, Set, Tuple, Callable, Union
 from sys import stderr
 import weakref
 import alsa_midi
@@ -49,31 +49,31 @@ from alsa_midi import (
 )
 from .event_wrappers import to_pimidipy_event
 
-MIDI_EVENTS = (
-	NoteOnEvent |
-	NoteOffEvent |
-	ControlChangeEvent |
-	AftertouchEvent |
-	ProgramChangeEvent |
-	ChannelPressureEvent |
-	PitchBendEvent |
-	Control14BitChangeEvent |
-	NRPNChangeEvent |
-	RPNChangeEvent |
-	SongPositionPointerEvent |
-	SongSelectEvent |
-	TimeSignatureEvent |
-	KeySignatureEvent |
-	StartEvent |
-	ContinueEvent |
-	StopEvent |
-	ClockEvent |
-	TuneRequestEvent |
-	ResetEvent |
-	ActiveSensingEvent |
-	SysExEvent |
+MIDI_EVENTS = Union[
+	NoteOnEvent,
+	NoteOffEvent,
+	ControlChangeEvent,
+	AftertouchEvent,
+	ProgramChangeEvent,
+	ChannelPressureEvent,
+	PitchBendEvent,
+	Control14BitChangeEvent,
+	NRPNChangeEvent,
+	RPNChangeEvent,
+	SongPositionPointerEvent,
+	SongSelectEvent,
+	TimeSignatureEvent,
+	KeySignatureEvent,
+	StartEvent,
+	ContinueEvent,
+	StopEvent,
+	ClockEvent,
+	TuneRequestEvent,
+	ResetEvent,
+	ActiveSensingEvent,
+	SysExEvent,
 	MidiBytesEvent
-	)
+]
 
 class PortHandle:
 	_proc: Optional["PimidiPy"]
@@ -137,16 +137,34 @@ class PortHandleRef:
 		self.close()
 
 class InputPort(PortHandleRef):
+	""" InputPort class represents a MIDI input port. """
 	def __init__(self, handle: PortHandle):
 		super().__init__(handle)
 
 	def add_callback(self, callback: Callable[[MIDI_EVENTS], None]):
+		""" Add a callback function to be called when a MIDI event is received on the input port.
+
+		:param callback: The callback function to add.
+		"""
 		self._handle._proc.add_input_callback(self, callback)
 
 	def remove_callback(self, callback: Callable[[MIDI_EVENTS], None]):
+		""" Remove a callback function from the input port.
+
+		:param callback: The callback function to remove.
+		"""
 		self._handle._proc.remove_input_callback(self, callback)
 
+	def close(self):
+		""" Optional function to close the input port.
+
+		Note that if there's multiple InputPort instances referring to the same port,
+		the port will only be closed when all of them are closed.
+		"""
+		super().close()
+
 class OutputPort(PortHandleRef):
+	""" OutputPort class represents a MIDI output port. """
 	def __init__(self, port_handle: PortHandle):
 		super().__init__(port_handle)
 
@@ -168,13 +186,32 @@ class OutputPort(PortHandleRef):
 
 		return result
 
-	def write(self, event: (MIDI_EVENTS | bytearray), drain: bool = True) -> int:
+	def write(self, event: Union[MIDI_EVENTS, bytearray], drain: bool = True) -> int:
+		"""Write a MIDI event or raw data to the output port.
+
+		:param event: The MIDI event or raw data to write.
+		:param drain: If `True`, the output buffer will be drained after writing the event.
+		:return: The number of bytes written, or a negative error code.
+		:rtype: int
+		"""
 		if isinstance(event, MIDI_EVENTS):
 			return self._do_write(partial(self._write_event, event), drain)
 
 		return self._do_write(partial(self._write_data, event), drain)
 
+	def close(self):
+		""" Optional function to close the output port.
+
+		Note that if there's multiple OutputPort instances referring to the same port,
+		the port will only be closed when all of them are closed.
+		"""
+		super().close()
+
 class PimidiPy:
+	""" PimidiPy class is the main gateway to the `pimidipy` library.
+
+	PimidiPy provides functions to open and close MIDI ports as well as to run the main loop.
+	"""
 	_INPUT=0
 	_OUTPUT=1
 
@@ -185,6 +222,10 @@ class PimidiPy:
 	_port2name: Array[Dict[Tuple[int, int], Set[str]]]
 
 	def __init__(self, client_name: str = "pimidipy"):
+		""" Initialize the PimidiPy object.
+
+		:param client_name: The name of the ALSA Sequencer client to create.
+		"""
 		self._input_callbacks = {}
 		self._open_ports = [weakref.WeakValueDictionary(), weakref.WeakValueDictionary()]
 		self._port2name = [defaultdict(set), defaultdict(set)]
@@ -197,6 +238,12 @@ class PimidiPy:
 		self._client.subscribe_port(alsa_midi.SYSTEM_ANNOUNCE, self._port)
 
 	def parse_port_name(self, port_name: str) -> Optional[Tuple[int, int]]:
+		"""Utility to parse an ALSA Sequencer MIDI port name into a client/port tuple.
+
+		:param port_name: The name of the port to parse.
+		:return: A tuple containing the client and port numbers, or None if the port was not found.
+		"""
+
 		addr_p = alsa_midi.ffi.new("snd_seq_addr_t *")
 		result = alsa_midi.alsa.snd_seq_parse_address(self._client.handle, addr_p, port_name.encode())
 		if result < 0:
@@ -223,7 +270,18 @@ class PimidiPy:
 			self._client.unsubscribe_port(self._port, addr)
 			self._open_ports[self._OUTPUT].pop(port)
 
-	def open_input(self, port_name: str):
+	def open_input(self, port_name: str) -> InputPort:
+		"""Open an Input port by name.
+
+		In case the port is not currently available, an `InputPort` object is still
+		returned, and it will subscribe to the appropriate device as soon as it is
+		connected automatically.
+
+		:param port_name: The name of the port to open.
+		:return: An InputPort object representing the opened port.
+		:rtype: InputPort
+		"""
+
 		result = self._open_ports[self._INPUT].get(port_name)
 
 		if result is None:
@@ -241,7 +299,17 @@ class PimidiPy:
 
 		return InputPort(result)
 
-	def open_output(self, port_name: str):
+	def open_output(self, port_name: str) -> OutputPort:
+		"""Open an Output port by name.
+
+		In case the port is not currently available, an OutputPort object is still
+		returned, and it will subscribe to the appropriate device as soon as it is
+		connected automatically.
+
+		:param port_name: The name of the port to open.
+		:return: An OutputPort object representing the opened port.
+		:rtype: OutputPort
+		"""
 		result = self._open_ports[self._OUTPUT].get(port_name)
 
 		if result is None:
@@ -272,46 +340,48 @@ class PimidiPy:
 		self._input_callbacks[input_port._handle._port_name].remove(callback)
 
 	def drain_output(self):
+		""" Drain the output buffer. Use this when if you set `drain` to `False` in [`OutputPort.write`][pimidipy.OutputPort.write]."""
 		self._client.drain_output()
 
 	def quit(self):
+		""" Ask the main loop to stop. """
 		self.done = True
 
 	def run(self):
+		""" Run the main loop. """
 		self.done = False
 		while not self.done:
 			try:
 				event = self._client.event_input()
-				match event.type:
-					case alsa_midi.EventType.PORT_START:
-						for i in range(2):
-							for name, port in self._open_ports[i].items():
-								parsed = self.parse_port_name(name)
-								if parsed == event.addr:
-									if parsed not in self._port2name[i]:
-										print("Reopening {} port '{}'".format("Input" if i == self._INPUT else "Output", event.addr))
-										if i == self._INPUT:
-											self._subscribe_port(parsed, self._port)
-										else:
-											self._subscribe_port(self._port, parsed)
-										port.port = parsed
-									print("Adding alias '{}' for {} port '{}'".format(name, "Input" if i == self._INPUT else "Output", event.addr))
-									self._port2name[i][parsed].add(name)
-					case alsa_midi.EventType.PORT_EXIT:
-						for i in range(2):
-							for name, port in self._open_ports[i].items():
-								parsed = self.parse_port_name(name)
-								if parsed == event.addr:
-									port.port = None
-							if event.addr in self._port2name[i]:
-								print("{} port '{}' disappeared.".format("Input" if i == self._INPUT else "Output", event.addr))
-								self._port2name[i].pop(event.addr)
-					case MIDI_EVENTS:
-						port_name_set = self._port2name[self._INPUT].get(event.source, None)
-						if port_name_set is not None:
-							for port_name in port_name_set:
-								if port_name in self._open_ports[self._INPUT] and port_name in self._input_callbacks:
-									for callback in self._input_callbacks[port_name]:
-										callback(to_pimidipy_event(event))
+				if event.type in MIDI_EVENTS:
+					port_name_set = self._port2name[self._INPUT].get(event.source, None)
+					if port_name_set is not None:
+						for port_name in port_name_set:
+							if port_name in self._open_ports[self._INPUT] and port_name in self._input_callbacks:
+								for callback in self._input_callbacks[port_name]:
+									callback(to_pimidipy_event(event))
+				elif event.type == alsa_midi.EventType.PORT_START:
+					for i in range(2):
+						for name, port in self._open_ports[i].items():
+							parsed = self.parse_port_name(name)
+							if parsed == event.addr:
+								if parsed not in self._port2name[i]:
+									print("Reopening {} port '{}'".format("Input" if i == self._INPUT else "Output", event.addr))
+									if i == self._INPUT:
+										self._subscribe_port(parsed, self._port)
+									else:
+										self._subscribe_port(self._port, parsed)
+									port.port = parsed
+								print("Adding alias '{}' for {} port '{}'".format(name, "Input" if i == self._INPUT else "Output", event.addr))
+								self._port2name[i][parsed].add(name)
+				elif event.type == alsa_midi.EventType.PORT_EXIT:
+					for i in range(2):
+						for name, port in self._open_ports[i].items():
+							parsed = self.parse_port_name(name)
+							if parsed == event.addr:
+								port.port = None
+						if event.addr in self._port2name[i]:
+							print("{} port '{}' disappeared.".format("Input" if i == self._INPUT else "Output", event.addr))
+							self._port2name[i].pop(event.addr)
 			except KeyboardInterrupt:
 				self.done = True

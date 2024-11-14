@@ -26,8 +26,6 @@ from alsa_midi import (
 	RegisteredParameterChangeEvent as RPNChangeEventBase,
 	SongPositionPointerEvent as SongPositionPointerEventBase,
 	SongSelectEvent as SongSelectEventBase,
-	TimeSignatureEvent as TimeSignatureEventBase,
-	KeySignatureEvent as KeySignatureEventBase,
 	StartEvent as StartEventBase,
 	ContinueEvent as ContinueEventBase,
 	StopEvent as StopEventBase,
@@ -42,15 +40,59 @@ from alsa_midi import (
 
 # Fix up argument ordering to match the rest of the event constructors.
 class NoteOnEvent(NoteOnEventBase):
+	""" A class representing a Note On event.
+
+	:ivar channel: MIDI Channel
+	:vartype channel: int
+	:ivar note: MIDI Note Number
+	:vartype note: int
+	:ivar velocity: Note Velocity
+	:vartype velocity: int
+	"""
+
 	def __init__(self, channel: int, note: int, velocity: int):
+		"""
+		:param channel: MIDI Channel
+		:param note: MIDI Note Number
+		:param velocity: Note Velocity
+		"""
 		super().__init__(channel = channel, note = note, velocity = velocity)
 
 class NoteOffEvent(NoteOffEventBase):
+	""" A class representing a Note Off event.
+
+	:ivar channel: MIDI Channel
+	:vartype channel: int
+	:ivar note: MIDI Note Number
+	:vartype note: int
+	:ivar velocity: Note Velocity
+	:vartype velocity: int
+	"""
 	def __init__(self, channel: int, note: int, velocity: int):
+		"""
+		:param channel: MIDI Channel
+		:param note: MIDI Note Number
+		:param velocity: Note Velocity
+		"""
 		super().__init__(channel = channel, note = note, velocity = velocity)
 
 class ControlChangeEvent(ControlChangeEventBase):
+	""" A class representing a Control Change event.
+
+	:ivar channel: MIDI Channel
+	:vartype channel: int
+	:ivar control: Control Number
+	:vartype control: int
+	:ivar value: Control Value
+	:vartype value: int
+	"""
+
 	def __init__(self, channel: int, control: int, value: int):
+		"""
+		:param channel: MIDI Channel
+		:param control: Control Number
+		:param value: Control Value
+		"""
 		super().__init__(channel = channel, param = control, value = value)
 
 	@property
@@ -62,76 +104,226 @@ class ControlChangeEvent(ControlChangeEventBase):
 		self.param = value
 
 class AftertouchEvent(AftertouchEventBase):
+	""" A class representing an Aftertouch event.
+
+	:ivar channel: MIDI Channel
+	:vartype channel: int
+	:ivar note: MIDI Note Number
+	:vartype note: int
+	:ivar value: Aftertouch Value
+	:vartype value: int
+	"""
+
 	def __init__(self, channel: int, note: int, value: int):
+		"""
+		:param channel: MIDI Channel
+		:param note: MIDI Note Number
+		:param value: Aftertouch Value
+		"""
 		super().__init__(channel = channel, note = note, value = value)
 
 class ProgramChangeEvent(ProgramChangeEventBase):
+	""" A class representing a Program Change event.
+
+	:ivar channel: MIDI Channel
+	:vartype channel: int
+	:ivar program: Program Number
+	:vartype program: int
+	"""
+
 	def __init__(self, channel: int, program: int):
+		"""
+		:param channel: MIDI Channel
+		:param program: Program Number
+		"""
 		super().__init__(channel = channel, program = program)
 
 class ChannelPressureEvent(ChannelPressureEventBase):
+	""" A class representing a Channel Pressure event.
+
+	:ivar channel: MIDI Channel
+	:vartype channel: int
+	:ivar value: Pressure Value
+	:vartype value: int
+	"""
+
 	def __init__(self, channel: int, value: int):
+		"""
+		:param channel: MIDI Channel
+		:param value: Pressure Value
+		"""
 		super().__init__(channel = channel, value = value)
 
 class PitchBendEvent(PitchBendEventBase):
+	""" A class representing a Pitch Bend event.
+
+	:ivar channel: MIDI Channel
+	:vartype channel: int
+	:ivar value: Pitch Bend Value
+	:vartype value: int
+	"""
+
 	def __init__(self, channel: int, value: int):
+		"""
+		:param channel: MIDI Channel
+		:param value: Pitch Bend Value
+		"""
 		super().__init__(channel = channel, value = value)
 
 class Control14BitChangeEvent(Control14BitChangeEventBase):
+	""" A class representing a 14-bit Control Change event.
+
+	:ivar channel: MIDI Channel
+	:vartype channel: int
+	:ivar control: Control Number
+	:vartype control: int
+	:ivar value: Control Value
+	:vartype value: int
+	"""
+
 	def __init__(self, channel: int, control: int, value: int):
-		super().__init__(channel = channel, control = control, value = value)
+		"""
+		:param channel: MIDI Channel
+		:param control: Control Number
+		:param value: Control Value
+		"""
+		super().__init__(channel = channel, param = control, value = value)
+
+	@property
+	def control(self):
+		return self.param
+
+	@control.setter
+	def control(self, value):
+		self.param = value
 
 class NRPNChangeEvent(NRPNChangeEventBase):
+	""" A class representing a Non-Registered Parameter Number Change event.
+
+	:ivar channel: MIDI Channel
+	:vartype channel: int
+	:ivar param: Parameter Number
+	:vartype param: int
+	:ivar value: Parameter Value
+	:vartype value: int
+	"""
 	def __init__(self, channel: int, param: int, value: int):
+		"""
+		:param channel: MIDI Channel
+		:param param: Parameter Number
+		:param value: Parameter Value
+		"""
 		super().__init__(channel = channel, param = param, value = value)
 
 class RPNChangeEvent(RPNChangeEventBase):
+	""" A class representing a Registered Parameter Number Change event.
+
+	:ivar channel: MIDI Channel
+	:vartype channel: int
+	:ivar param: Parameter Number
+	:vartype param: int
+	:ivar value: Parameter Value
+	:vartype value: int
+	"""
 	def __init__(self, channel: int, param: int, value: int):
+		"""
+		:param channel: MIDI Channel
+		:param param: Parameter Number
+		:param value: Parameter Value
+		"""
 		super().__init__(channel = channel, param = param, value = value)
 
 class SongPositionPointerEvent(SongPositionPointerEventBase):
+	""" A class representing a Song Position Pointer event.
+
+	:ivar position: Song Position - 14-bit value. Position is counted in "MIDI beats" (1 beat = 6 MIDI clocks)
+	:vartype position: int
+	"""
 	def __init__(self, position: int):
+		"""
+		:param position: Song Position
+		"""
 		super().__init__(position = position)
 
 class SongSelectEvent(SongSelectEventBase):
+	""" A class representing a Song Select event.
+
+	:ivar song: Song Number
+	:vartype song: int
+	"""
+
 	def __init__(self, song: int):
+		"""
+		:param song: Song Number
+		"""
 		super().__init__(song = song)
 
-class TimeSignatureEvent(TimeSignatureEventBase):
-	def __init__(self, numerator: int, denominator: int, metronome: int, thirtyseconds: int):
-		super().__init__(numerator = numerator, denominator = denominator, metronome = metronome, thirtyseconds = thirtyseconds)
-
-class KeySignatureEvent(KeySignatureEventBase):
-	def __init__(self, key: int, scale: int):
-		super().__init__(key = key, scale = scale)
-
 class StartEvent(StartEventBase):
-	pass
+	""" A class representing a Start event. """
+	def __init__(self):
+		""" Default Constructor. """
+		super().__init__()
 
 class ContinueEvent(ContinueEventBase):
-	pass
+	""" A class representing a Continue event. """
+	def __init__(self):
+		""" Default Constructor. """
+		super().__init__()
 
 class StopEvent(StopEventBase):
-	pass
+	""" A class representing a Stop event. """
+	def __init__(self):
+		""" Default Constructor. """
+		super().__init__()
 
 class ClockEvent(ClockEventBase):
-	pass
+	""" A class representing a Clock event. 24 Clock events make up a quarter note. """
+	def __init__(self):
+		""" Default Constructor. """
+		super().__init__()
 
 class TuneRequestEvent(TuneRequestEventBase):
-	pass
+	""" A class representing a Tune Request event. """
+	def __init__(self):
+		""" Default Constructor. """
+		super().__init__()
 
 class ResetEvent(ResetEventBase):
-	pass
+	""" A class representing a Reset event. """
+	def __init__(self):
+		""" Default Constructor. """
+		super().__init__()
 
 class ActiveSensingEvent(ActiveSensingEventBase):
-	pass
+	""" A class representing an Active Sensing event. """
+	def __init__(self):
+		""" Default Constructor. """
+		super().__init__()
 
 class SysExEvent(SysExEventBase):
+	""" A class representing a System Exclusive event.
+
+	:ivar data: SysEx Data
+	:vartype data: bytes
+	"""
+
 	def __init__(self, data: bytes):
+		"""
+		:param data: SysEx Data
+		"""
 		super().__init__(data = data)
 
 class MidiBytesEvent(MidiBytesEventBase):
+	""" A class for writing Raw MIDI Bytes to an OutputPort.
+
+	:ivar data: Raw MIDI Bytes
+	:vartype data: bytes
+	"""
+
 	def __init__(self, data: bytes):
+		"""
+		:param data: Raw MIDI Bytes
+		"""
 		super().__init__(data = data)
 
 mappings = {
@@ -147,8 +339,6 @@ mappings = {
 	RPNChangeEventBase: lambda x: RPNChangeEvent(x.channel, x.param, x.value),
 	SongPositionPointerEventBase: lambda x: SongPositionPointerEvent(x.position),
 	SongSelectEventBase: lambda x: SongSelectEvent(x.song),
-	TimeSignatureEventBase: lambda x: TimeSignatureEvent(x.numerator, x.denominator, x.metronome, x.thirtyseconds),
-	KeySignatureEventBase: lambda x: KeySignatureEvent(x.key, x.scale),
 	StartEventBase: lambda x: StartEvent(),
 	ContinueEventBase: lambda x: ContinueEvent(),
 	StopEventBase: lambda x: StopEvent(),

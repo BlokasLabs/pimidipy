@@ -27,8 +27,6 @@ from .event_wrappers import (
 	RPNChangeEvent,
 	SongPositionPointerEvent,
 	SongSelectEvent,
-	TimeSignatureEvent,
-	KeySignatureEvent,
 	StartEvent,
 	ContinueEvent,
 	StopEvent,
