@@ -13,30 +13,25 @@
 # You should have received a copy of the GNU General Public License along
 # with this program. If not, see https://www.gnu.org/licenses/.
 
-from .event_wrappers import (
-	EventType,
-	NoteOnEvent,
-	NoteOffEvent,
-	ControlChangeEvent,
-	AftertouchEvent,
-	ProgramChangeEvent,
-	ChannelPressureEvent,
-	PitchBendEvent,
-	Control14BitChangeEvent,
-	NRPNChangeEvent,
-	RPNChangeEvent,
-	SongPositionPointerEvent,
-	SongSelectEvent,
-	TimeSignatureEvent,
-	KeySignatureEvent,
-	StartEvent,
-	ContinueEvent,
-	StopEvent,
-	ClockEvent,
-	TuneRequestEvent,
-	ResetEvent,
-	ActiveSensingEvent,
-	SysExEvent,
-	MidiBytesEvent,
-)
-from .pimidipy import PimidiPy, InputPort, OutputPort
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pimidipy"
+version = "0.1.0"
+authors = [
+  { name="Blokas", email="hello@blokas.io" },
+]
+description = "pimidipy MIDI processing library"
+readme = "README.md"
+requires-python = ">=3.8"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+    "Operating System :: POSIX :: Linux",
+]
+
+[project.urls]
+Homepage = "https://blokas.io/"
+Issues = "https://github.com/blokaslabs/pimidipy/issues"
