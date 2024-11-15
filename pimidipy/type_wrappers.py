@@ -138,7 +138,7 @@ class ProgramChangeEvent(ProgramChangeEventBase):
 		:param channel: MIDI Channel
 		:param program: Program Number
 		"""
-		super().__init__(channel = channel, program = program)
+		super().__init__(channel = channel, value = program)
 
 class ChannelPressureEvent(ChannelPressureEventBase):
 	""" A class representing a Channel Pressure event.

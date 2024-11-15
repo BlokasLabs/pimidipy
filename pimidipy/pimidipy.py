@@ -98,22 +98,15 @@ class PortInfo:
 	holds a collection of MIDI port attributes.
 
 	:ivar client_name: The name of the client owning the port.
-	:vartype client_name: str
 	:ivar port_name: The name of the port.
-	:vartype port_name: str
 	:ivar client_id: The client ID.
-	:vartype client_id: int
 	:ivar port_id: The port ID.
-	:vartype port_id: int
 	:ivar address: The address of the port in the form of 'client_id:port_id'.
-	:vartype address: str
 	:ivar direction: The direction of the port.
-	:vartype direction: PortDirection
 	:ivar capabilities: The capabilities of the port. See [SND_SEQ_PORT_CAP_...](https://www.alsa-project.org/alsa-doc/alsa-lib/group___seq_port.html){:target="_blank"} enum docs for more information.
-	:vartype capabilities: PortCaps
 	:ivar type: The type of the port. See [SND_SEQ_PORT_TYPE_...](https://www.alsa-project.org/alsa-doc/alsa-lib/group___seq_port.html){:target="_blank"} enum docs for more information.
-	:vartype type: PortType
 	"""
+
 	client_name: str
 	port_name: str
 	client_id: int
@@ -134,7 +127,7 @@ class PortInfo:
 		self.type = type
 
 	def __repr__(self):
-		return f"PortInfo(client_name='{self.client_name}', port_name='{self.port_name}', address='{self.address}', direction={self.direction}, capabilities={self.capabilities}, type={self.type})"
+		return f"PortInfo(client_name='{self.client_name}', port_name='{self.port_name}', address='{self.address}', direction={repr(self.direction)}, capabilities={repr(self.capabilities)}, type={repr(self.type)})"
 
 class PortHandle:
 	_proc: Optional["PimidiPy"]
