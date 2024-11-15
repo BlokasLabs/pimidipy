@@ -36,6 +36,8 @@ from alsa_midi import (
 	SysExEvent as SysExEventBase,
 	MidiBytesEvent as MidiBytesEventBase,
 	EventType,
+	PortType,
+	PortCaps
 )
 
 # Fix up argument ordering to match the rest of the event constructors.

@@ -13,8 +13,10 @@
 # You should have received a copy of the GNU General Public License along
 # with this program. If not, see https://www.gnu.org/licenses/.
 
-from .event_wrappers import (
+from .type_wrappers import (
 	EventType,
+	PortType,
+	PortCaps,
 	NoteOnEvent,
 	NoteOffEvent,
 	ControlChangeEvent,
@@ -37,4 +39,4 @@ from .event_wrappers import (
 	SysExEvent,
 	MidiBytesEvent,
 )
-from .pimidipy import PimidiPy, InputPort, OutputPort
+from .pimidipy import PimidiPy, PortInfo, PortDirection, InputPort, OutputPort

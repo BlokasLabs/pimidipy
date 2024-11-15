@@ -18,6 +18,7 @@ from ctypes import Array
 from functools import partial
 from typing import Dict, List, Optional, Set, Tuple, Callable, Union
 from sys import stderr
+from enum import IntFlag
 import weakref
 import alsa_midi
 import errno
@@ -47,7 +48,7 @@ from alsa_midi import (
 	SysExEvent,
 	MidiBytesEvent
 )
-from .event_wrappers import to_pimidipy_event
+from .type_wrappers import to_pimidipy_event
 
 MIDI_EVENTS = Union[
 	NoteOnEvent,
@@ -74,6 +75,66 @@ MIDI_EVENTS = Union[
 	SysExEvent,
 	MidiBytesEvent
 ]
+
+class PortDirection(IntFlag):
+	""" PortDirection is an enumeration of MIDI port directions.
+	
+	Available values are:
+
+	- `ANY`: Any direction. Useful for use with [`PimidiPy.list_ports`][pimidipy.PimidiPy.list_ports]
+	- `INPUT`: Input port.
+	- `OUTPUT`: Output port.
+	- `BOTH`: Input and output port.
+
+	The values can be used as bitwise flags.
+	"""
+	ANY    = 0
+	INPUT  = 1 << 0
+	OUTPUT = 1 << 1
+	BOTH   = INPUT | OUTPUT
+
+class PortInfo:
+	""" PortInfo class, which is returned by [`PimidiPy.list_ports`][pimidipy.PimidiPy.list_ports],
+	holds a collection of MIDI port attributes.
+
+	:ivar client_name: The name of the client owning the port.
+	:vartype client_name: str
+	:ivar port_name: The name of the port.
+	:vartype port_name: str
+	:ivar client_id: The client ID.
+	:vartype client_id: int
+	:ivar port_id: The port ID.
+	:vartype port_id: int
+	:ivar address: The address of the port in the form of 'client_id:port_id'.
+	:vartype address: str
+	:ivar direction: The direction of the port.
+	:vartype direction: PortDirection
+	:ivar capabilities: The capabilities of the port. See [SND_SEQ_PORT_CAP_...](https://www.alsa-project.org/alsa-doc/alsa-lib/group___seq_port.html){:target="_blank"} enum docs for more information.
+	:vartype capabilities: PortCaps
+	:ivar type: The type of the port. See [SND_SEQ_PORT_TYPE_...](https://www.alsa-project.org/alsa-doc/alsa-lib/group___seq_port.html){:target="_blank"} enum docs for more information.
+	:vartype type: PortType
+	"""
+	client_name: str
+	port_name: str
+	client_id: int
+	port_id: int
+	address: str
+	direction: PortDirection
+	capabilities: alsa_midi.PortCaps
+	type: alsa_midi.PortType
+
+	def __init__(self, client_name: str, port_name: str, client_id: int, port_id: int, address: str, direction: PortDirection, capabilities: alsa_midi.PortCaps, type: alsa_midi.PortType):
+		self.client_name = client_name
+		self.port_name = port_name
+		self.client_id = client_id
+		self.port_id = port_id
+		self.address = address
+		self.direction = direction
+		self.capabilities = capabilities
+		self.type = type
+
+	def __repr__(self):
+		return f"PortInfo(client_name='{self.client_name}', port_name='{self.port_name}', address='{self.address}', direction={self.direction}, capabilities={self.capabilities}, type={self.type})"
 
 class PortHandle:
 	_proc: Optional["PimidiPy"]
@@ -142,14 +203,14 @@ class InputPort(PortHandleRef):
 		super().__init__(handle)
 
 	def add_callback(self, callback: Callable[[MIDI_EVENTS], None]):
-		""" Add a callback function to be called when a MIDI event is received on the input port.
+		""" Add a callback function to be called when a MIDI event is received from the input port.
 
 		:param callback: The callback function to add.
 		"""
 		self._handle._proc.add_input_callback(self, callback)
 
 	def remove_callback(self, callback: Callable[[MIDI_EVENTS], None]):
-		""" Remove a callback function from the input port.
+		""" Remove a previously added callback function from the input port.
 
 		:param callback: The callback function to remove.
 		"""
@@ -188,6 +249,9 @@ class OutputPort(PortHandleRef):
 
 	def write(self, event: Union[MIDI_EVENTS, bytearray], drain: bool = True) -> int:
 		"""Write a MIDI event or raw data to the output port.
+
+		The function accepts either one of the Event classes defined below, or raw MIDI data
+		in the form of a bytearray.
 
 		:param event: The MIDI event or raw data to write.
 		:param drain: If `True`, the output buffer will be drained after writing the event.
@@ -237,18 +301,61 @@ class PimidiPy:
 			)
 		self._client.subscribe_port(alsa_midi.SYSTEM_ANNOUNCE, self._port)
 
-	def parse_port_name(self, port_name: str) -> Optional[Tuple[int, int]]:
-		"""Utility to parse an ALSA Sequencer MIDI port name into a client/port tuple.
+	def list_ports(self, direction: PortDirection = PortDirection.ANY) -> List[PortInfo]:
+		""" List all available MIDI ports.
 
-		:param port_name: The name of the port to parse.
-		:return: A tuple containing the client and port numbers, or None if the port was not found.
+		:return: A list of `PortInfo` objects.
 		"""
 
+		input = False
+		output = False
+
+		if direction == PortDirection.ANY:
+			input = None
+			output = None
+		else:
+			input = direction & PortDirection.INPUT
+			output = direction & PortDirection.OUTPUT
+
+		ports = self._client.list_ports(
+			input = input,
+			output = output,
+			include_no_export=False,
+			only_connectable=True
+			)
+
+		result = []
+
+		for port in ports:
+			result.append(PortInfo(
+				client_name = port.client_name,
+				port_name = port.name,
+				client_id = port.client_id,
+				port_id = port.port_id,
+				address = f"{port.client_id}:{port.port_id}",
+				direction = (PortDirection.INPUT if port.capability & alsa_midi.PortCaps.READ else 0) | (PortDirection.OUTPUT if port.capability & alsa_midi.PortCaps.WRITE else 0),
+				capabilities = port.capability,
+				type = port.type
+			))
+
+		return result
+
+	def _parse_port_name(self, port_name: str) -> Optional[Tuple[int, int]]:
 		addr_p = alsa_midi.ffi.new("snd_seq_addr_t *")
 		result = alsa_midi.alsa.snd_seq_parse_address(self._client.handle, addr_p, port_name.encode())
 		if result < 0:
 			return None
 		return addr_p.client, addr_p.port
+
+	def resolve_port_name(self, port_name: str) -> Optional[str]:
+		"""Utility to resolve an ALSA Sequencer MIDI port name into a 'client_id:port_id' string.
+
+		:param port_name: The name of the port to parse.
+		:return: A normalized 'client_id:port_id' string, or None if the port was not found.
+		"""
+
+		addr_p = self._parse_port_name(port_name)
+		return "{}:{}".format(addr_p.client, addr_p.port)
 
 	def _subscribe_port(self, src, dst):
 		try:
@@ -261,7 +368,7 @@ class PimidiPy:
 
 	def _unsubscribe_port(self, port: str, input: bool):
 		print("Unsubscribing {} port '{}'".format("Input" if input else "Output", port))
-		addr = self.parse_port_name(port)
+		addr = self._parse_port_name(port)
 		if input:
 			self._client.unsubscribe_port(addr, self._port)
 			self._open_ports[self._INPUT].pop(port)
@@ -270,61 +377,72 @@ class PimidiPy:
 			self._client.unsubscribe_port(self._port, addr)
 			self._open_ports[self._OUTPUT].pop(port)
 
-	def open_input(self, port_name: str) -> InputPort:
-		"""Open an Input port by name.
+	def open_input(self, port: Union[str, PortInfo, Tuple[int, int]]) -> InputPort:
+		"""Open an input port by name.
 
 		In case the port is not currently available, an `InputPort` object is still
 		returned, and it will subscribe to the appropriate device as soon as it is
 		connected automatically.
 
-		:param port_name: The name of the port to open.
+		:param port: The name/info/address of the port to open.
 		:return: An InputPort object representing the opened port.
 		:rtype: InputPort
 		"""
 
-		result = self._open_ports[self._INPUT].get(port_name)
+		if isinstance(port, PortInfo):
+			port = f"{port.client_name}:{port.port_id}"
+		elif isinstance(port, tuple):
+			port = f"{port[0]}:{port[1]}"
+
+		result = self._open_ports[self._INPUT].get(port)
 
 		if result is None:
-			result = PortHandle(self, port_name, True)
-			self._open_ports[self._INPUT][port_name] = result
-			self._input_callbacks[port_name] = []
+			result = PortHandle(self, port, True)
+			self._open_ports[self._INPUT][port] = result
+			self._input_callbacks[port] = []
 
-			port = self.parse_port_name(port_name)
-			if port is None:
-				stderr.write("Failed to locate Input port by name '{}', will wait for it to appear.\n".format(port_name))
+			p = self._parse_port_name(port)
+			if p is None:
+				stderr.write("Failed to locate Input port by name '{}', will wait for it to appear.\n".format(port))
 			else:
-				self._port2name[self._INPUT][port].add(port_name)
-				if not self._subscribe_port(port, self._port):
-					stderr.write("Failed to subscribe to Input port '{}'.\n".format(port_name))
+				self._port2name[self._INPUT][p].add(port)
+				if not self._subscribe_port(p, self._port):
+					stderr.write("Failed to subscribe to Input port '{}'.\n".format(port))
 
 		return InputPort(result)
 
-	def open_output(self, port_name: str) -> OutputPort:
-		"""Open an Output port by name.
+	def open_output(self, port: Union[str, PortInfo, Tuple[int, int]]) -> OutputPort:
+		"""Open an output port by name.
 
 		In case the port is not currently available, an OutputPort object is still
 		returned, and it will subscribe to the appropriate device as soon as it is
 		connected automatically.
 
-		:param port_name: The name of the port to open.
+		:param port: The name/address/info of the port to open.
 		:return: An OutputPort object representing the opened port.
 		:rtype: OutputPort
 		"""
-		result = self._open_ports[self._OUTPUT].get(port_name)
+
+		if isinstance(port, PortInfo):
+			port = f"{port.client_name}:{port.port_id}"
+		elif isinstance(port, tuple):
+			port = f"{port[0]}:{port[1]}"
+
+		result = self._open_ports[self._OUTPUT].get(port)
 
 		if result is None:
-			result = PortHandle(self, port_name, False)
-			self._open_ports[self._OUTPUT][port_name] = result
+			result = PortHandle(self, port, False)
+			self._open_ports[self._OUTPUT][port] = result
 
-			port = self.parse_port_name(port_name)
-			if port is None:
-				stderr.write("Failed to locate Output port by name '{}', will wait for it to appear.\n".format(port_name))
+			p = self._parse_port_name(port)
+			if p is None:
+				stderr.write("Failed to locate Output port by name '{}', will wait for it to appear.\n".format(port))
 			else:
-				self._port2name[self._OUTPUT][port].add(port_name)
-				if not self._subscribe_port(self._port, port):
-					stderr.write("Failed to subscribe to Output port '{}'.\n".format(port_name))
+				self._port2name[self._OUTPUT][p].add(port)
+				if not self._subscribe_port(self._port, p):
+					stderr.write("Failed to subscribe to Output port '{}'.\n".format(port))
 				else:
-					result._port = port
+					result._port = p
 
 		return OutputPort(result)
 
@@ -353,7 +471,7 @@ class PimidiPy:
 		while not self.done:
 			try:
 				event = self._client.event_input()
-				if event.type in MIDI_EVENTS:
+				if isinstance(event, MIDI_EVENTS):
 					port_name_set = self._port2name[self._INPUT].get(event.source, None)
 					if port_name_set is not None:
 						for port_name in port_name_set:
@@ -363,7 +481,7 @@ class PimidiPy:
 				elif event.type == alsa_midi.EventType.PORT_START:
 					for i in range(2):
 						for name, port in self._open_ports[i].items():
-							parsed = self.parse_port_name(name)
+							parsed = self._parse_port_name(name)
 							if parsed == event.addr:
 								if parsed not in self._port2name[i]:
 									print("Reopening {} port '{}'".format("Input" if i == self._INPUT else "Output", event.addr))
@@ -371,15 +489,15 @@ class PimidiPy:
 										self._subscribe_port(parsed, self._port)
 									else:
 										self._subscribe_port(self._port, parsed)
-									port.port = parsed
+									port._port = parsed
 								print("Adding alias '{}' for {} port '{}'".format(name, "Input" if i == self._INPUT else "Output", event.addr))
 								self._port2name[i][parsed].add(name)
 				elif event.type == alsa_midi.EventType.PORT_EXIT:
 					for i in range(2):
 						for name, port in self._open_ports[i].items():
-							parsed = self.parse_port_name(name)
+							parsed = self._parse_port_name(name)
 							if parsed == event.addr:
-								port.port = None
+								port._port = None
 						if event.addr in self._port2name[i]:
 							print("{} port '{}' disappeared.".format("Input" if i == self._INPUT else "Output", event.addr))
 							self._port2name[i].pop(event.addr)
