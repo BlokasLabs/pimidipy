@@ -1,0 +1,16 @@
+Source: pimidipy
+Section: libs
+Priority: optional
+Maintainer: Blokas <hello@blokas.io>
+Build-Depends: debhelper-compat (= 13), dh-python, python3-all
+Standards-Version: 4.5.1
+Homepage: https://blokas.io/pimidi/
+Rules-Requires-Root: no
+Vcs-Git: https://github.com/blokaslabs/pimidipy.git
+
+Package: python3-pimidipy
+Architecture: all
+Multi-Arch: foreign
+Depends: ${misc:Depends}, ${python3:Depends}
+Description: A MIDI Processing Library for use with Pimidi.
+ See https://blokas.io/pimidi/docs/pimidipy/ for more information.

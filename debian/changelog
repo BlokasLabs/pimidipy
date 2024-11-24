@@ -1,0 +1,5 @@
+pimidipy (0.1.1-1) UNRELEASED; urgency=low
+
+  * Initial release as a Debian package.
+
+ -- Giedrius Trainavičius <giedrius@blokas.io>  Sun, 24 Nov 2024 13:25:39 +0000

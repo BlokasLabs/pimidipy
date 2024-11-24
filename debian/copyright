@@ -1,0 +1,42 @@
+Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Upstream-Name: pimidipy
+Upstream-Contact: <preferred name and address to reach the upstream project>
+Source: <url://example.com>
+#
+# Please double check copyright with the licensecheck(1) command.
+
+Files:     PKG-INFO
+           pimidipy.egg-info/PKG-INFO
+           pimidipy.egg-info/SOURCES.txt
+           pimidipy.egg-info/dependency_links.txt
+           pimidipy.egg-info/requires.txt
+           pimidipy.egg-info/top_level.txt
+           setup.cfg
+Copyright: __NO_COPYRIGHT_NOR_LICENSE__
+License:   __NO_COPYRIGHT_NOR_LICENSE__
+
+Files:     pimidipy/__init__.py
+           pimidipy/pimidipy.py
+           pimidipy/type_wrappers.py
+           pyproject.toml
+           setup.py
+Copyright: 2024 UAB Vilniaus blokas
+License:   GPL-3.0
+ This program is free software: you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation, version 3.
+ .
+ This program is distributed in the hope that it will be useful, but
+ WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+ or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
+ for more details.
+ .
+ You should have received a copy of the GNU General Public License along
+ with this program. If not, see https://www.gnu.org/licenses/.
+ .
+ On Debian systems, the complete text of the GNU General Public License
+ Version 3 can be found in `/usr/share/common-licenses/GPL-3'.
+
+#----------------------------------------------------------------------------
+# Files marked as NO_LICENSE_TEXT_FOUND may be covered by the following
+# license/copyright files.
