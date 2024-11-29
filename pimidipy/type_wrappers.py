@@ -333,7 +333,7 @@ mappings = {
 	NoteOffEventBase: lambda x: NoteOffEvent(x.channel, x.note, x.velocity),
 	ControlChangeEventBase: lambda x: ControlChangeEvent(x.channel, x.param, x.value),
 	AftertouchEventBase: lambda x: AftertouchEvent(x.channel, x.note, x.value),
-	ProgramChangeEventBase: lambda x: ProgramChangeEvent(x.channel, x.program),
+	ProgramChangeEventBase: lambda x: ProgramChangeEvent(x.channel, x.value),
 	ChannelPressureEventBase: lambda x: ChannelPressureEvent(x.channel, x.value),
 	PitchBendEventBase: lambda x: PitchBendEvent(x.channel, x.value),
 	Control14BitChangeEventBase: lambda x: Control14BitChangeEvent(x.channel, x.control, x.value),
