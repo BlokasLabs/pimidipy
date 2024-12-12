@@ -19,6 +19,11 @@ from functools import partial
 from typing import Dict, List, Optional, Set, Tuple, Callable, Union
 from sys import stderr
 from enum import IntFlag
+from dotenv import load_dotenv
+from os import getenv
+
+load_dotenv(dotenv_path='/etc/pimidipy.conf', override=False)
+
 import weakref
 import alsa_midi
 import errno
@@ -171,6 +176,27 @@ class PortHandle:
 
 class PortHandleRef:
 	_handle: Optional[PortHandle]
+
+	@property
+	def name(self) -> Optional[str]:
+		""" The name of the port. `None` if the port is closed. """
+		if self._handle is None:
+			return None
+		return self._handle._port_name
+	
+	@property
+	def is_input(self) -> Optional[bool]:
+		""" Whether the port is an input port. `None` if the port is closed. """
+		if self._handle is None:
+			return None
+		return self._handle._input
+
+	@property
+	def is_output(self) -> Optional[bool]:
+		""" Whether the port is an output port. `None` if the port is closed. """
+		if self._handle is None:
+			return None
+		return not self._handle._input
 
 	def __init__(self, handle: PortHandle):
 		self._handle = handle
@@ -370,14 +396,90 @@ class PimidiPy:
 			self._client.unsubscribe_port(self._port, addr)
 			self._open_ports[self._OUTPUT].pop(port)
 
-	def open_input(self, port: Union[str, PortInfo, Tuple[int, int]]) -> InputPort:
-		"""Open an input port by name.
+	@staticmethod
+	def get_port(id: int, input: bool) -> str:
+		"""Get the port string id for the given numeric id.
+
+		The port string id is read from the environment variable `PORT_{IN/OUT}_{id}` if it exists, otherwise it is
+		constructed from the id. The port is returned in the format `pimidi{device}:{port}`.
+
+		You may set the `PORT_{IN/OUT}_{id}` variables in `/etc/pimidipy.conf` to avoid hardcoding the port ids in your
+		code:
+
+		`PORT_IN_0=pimidi0:0` <br/>
+		`PORT_OUT_0=pimidi3:1`
+
+		Default port ids are `pimidi{device}:{port}` where device is `id // 2` and port is `id % 2`.
+		For example: 0 => `pimidi0:0`, 1 => `pimidi0:1`, 2 => `pimidi1:0`, 3 => `pimidi1:1`, etc...
+
+		:param id: The id of the port.
+		:param input: Whether the port is an input port.
+		:return: The port string id for the given id.
+		:rtype: str
+		"""
+		if id < 0:
+			raise ValueError("Port id must be 0 or greater.")
+
+		dir = 'IN' if input else 'OUT'
+		port = getenv(f'PORT_{dir}_{id}', None)
+		if port is not None:
+			return port
+
+		if id >= 8:
+			raise ValueError("Port id must be between 0 and 7. Or set the PORT_{IN/OUT}_{id} environment variable in /etc/pimidipy.conf.")
+
+		return 'pimidi{}:{}'.format(id // 2, id % 2)
+
+	@staticmethod
+	def get_input_port(id: int) -> str:
+		"""Get the port string id for the given numeric id.
+
+		The port string id is read from the environment variable `PORT_IN_{id}` if it exists, otherwise it is constructed
+		from the id. The port is returned in the format `pimidi{device}:{port}`.
+
+		You may set the `PORT_IN_{id}` variables in `/etc/pimidipy.conf` to avoid hardcoding the port ids in your code:
+
+		`PORT_IN_0=pimidi0:0` <br/>
+		`PORT_IN_1=pimidi3:1`
+
+		Default port ids are `pimidi{device}:{port}` where device is `id // 2` and port is `id % 2`.
+		For example: 0 => `pimidi0:0`, 1 => `pimidi0:1`, 2 => `pimidi1:0`, 3 => `pimidi1:1`, etc...
+
+		:param id: The id of the port.
+		:return: The port string id for the given id.
+		:rtype: str
+		"""
+		return PimidiPy.get_port(id, True)
+	
+	@staticmethod
+	def get_output_port(id: int) -> str:
+		"""Get the port string id for the given numeric id.
+
+		The port string id is read from the environment variable `PORT_OUT_{id}` if it exists, otherwise it is constructed
+		from the id. The port is returned in the format `pimidi{device}:{port}`.
+
+		You may set the `PORT_OUT_{id}` variables in `/etc/pimidipy.conf` to avoid hardcoding the port ids in your code:
+
+		`PORT_OUT_0=pimidi0:0` <br/>
+		`PORT_OUT_1=pimidi3:1`
+
+		Default port ids are `pimidi{device}:{port}` where device is `id // 2` and port is `id % 2`.
+		For example: 0 => `pimidi0:0`, 1 => `pimidi0:1`, 2 => `pimidi1:0`, 3 => `pimidi1:1`, etc...
+
+		:param id: The id of the port.
+		:return: The port string id for the given id.
+		:rtype: str
+		"""
+		return PimidiPy.get_port(id, False)
+
+	def open_input(self, port: Union[str, PortInfo, Tuple[int, int], int]) -> InputPort:
+		"""Open an input port by name, or id (using `get_input_port`).
 
 		In case the port is not currently available, an `InputPort` object is still
 		returned, and it will subscribe to the appropriate device as soon as it is
 		connected automatically.
 
-		:param port: The name/info/address of the port to open.
+		:param port: The name/info/address/id of the port to open.
 		:return: An InputPort object representing the opened port.
 		:rtype: InputPort
 		"""
@@ -386,6 +488,8 @@ class PimidiPy:
 			port = f"{port.client_name}:{port.port_id}"
 		elif isinstance(port, tuple):
 			port = f"{port[0]}:{port[1]}"
+		elif isinstance(port, int):
+			port = self.get_input_port(port)
 
 		result = self._open_ports[self._INPUT].get(port)
 
@@ -404,14 +508,14 @@ class PimidiPy:
 
 		return InputPort(result)
 
-	def open_output(self, port: Union[str, PortInfo, Tuple[int, int]]) -> OutputPort:
-		"""Open an output port by name.
+	def open_output(self, port: Union[str, PortInfo, Tuple[int, int], int]) -> OutputPort:
+		"""Open an output port by name or id (using `get_output_port`).
 
 		In case the port is not currently available, an OutputPort object is still
 		returned, and it will subscribe to the appropriate device as soon as it is
 		connected automatically.
 
-		:param port: The name/address/info of the port to open.
+		:param port: The name/address/info/id of the port to open.
 		:return: An OutputPort object representing the opened port.
 		:rtype: OutputPort
 		"""
@@ -420,6 +524,8 @@ class PimidiPy:
 			port = f"{port.client_name}:{port.port_id}"
 		elif isinstance(port, tuple):
 			port = f"{port[0]}:{port[1]}"
+		elif isinstance(port, int):
+			port = self.get_output_port(port)
 
 		result = self._open_ports[self._OUTPUT].get(port)
 
@@ -487,12 +593,11 @@ class PimidiPy:
 								self._port2name[i][parsed].add(name)
 				elif event.type == alsa_midi.EventType.PORT_EXIT:
 					for i in range(2):
-						for name, port in self._open_ports[i].items():
-							parsed = self._parse_port_name(name)
-							if parsed == event.addr:
-								port._port = None
 						if event.addr in self._port2name[i]:
-							print("{} port '{}' disappeared.".format("Input" if i == self._INPUT else "Output", event.addr))
-							self._port2name[i].pop(event.addr)
+							names = self._port2name[i].pop(event.addr)
+							for name in names:
+								print("{} port '{}' (alias for '{}') disappeared.".format("Input" if i == self._INPUT else "Output", name, event.addr))
+								if name in self._open_ports[i]:
+									self._open_ports[i][name]._port = None
 			except KeyboardInterrupt:
 				self.done = True
