@@ -19,7 +19,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pimidipy"
-version = "0.1.2.post1"
+version = "0.1.2.post3"
 authors = [
 	{ name="Blokas", email="hello@blokas.io" },
 ]
@@ -39,5 +39,8 @@ classifiers = [
 ]
 
 [project.urls]
-Homepage = "https://blokas.io/pimidi/docs/pimidipy/"
+Homepage = "https://blokas.io/pimidi/"
+Community = "https://community.blokas.io/c/pimidi/26"
+Documentation = "https://blokas.io/pimidi/docs/pimidipy/"
+Repository = "https://github.com/blokaslabs/pimidipy"
 Issues = "https://github.com/blokaslabs/pimidipy/issues"
