@@ -36,3 +36,36 @@ pimidipy.run()
 ```
 
 This is pretty much the base foundation upon which you may build your custom MIDI processing. See the online [API Reference](https://blokas.io/pimidi/docs/pimidipy-reference/) for details on every API.
+
+## Contributing
+
+We warmly invite the open-source community to help us improve and extend the `pimidipy` library. Whether you want to add new features, fix bugs, or improve documentation, we welcome your contributions!
+
+### Getting Started
+1. **Install prerequisites** (if not already installed):
+   Make sure `pip` for Python 3 is available on your system. You can install it using:
+   ```bash
+   sudo apt update
+   sudo apt install python3-pip
+   ```
+
+2. **Fork** the repository and clone it to your local machine:
+   ```bash
+   git clone https://github.com/your-username/pimidipy.git
+   cd pimidipy
+   ```
+
+3. **Install the library locally** in editable mode using `pip`:
+   ```bash
+   pip3 install --break-system-packages -e .
+   ```
+
+   This allows you to make changes to the library and test them immediately without needing to reinstall it.
+
+4. **Make your changes** and test them locally.
+
+5. **Submit your changes** as a pull request.
+
+6. Join the conversation in our [community forums](https://community.blokas.io) to discuss ideas, get support, or share your projects.
+
+Your contributions will help make `pimidipy` even better for everyone. Thank you for being part of the Blokas community!

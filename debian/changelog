@@ -1,3 +1,13 @@
+pimidipy (0.1.2-1) UNRELEASED; urgency=low
+
+  * Added name, is_input, is_output to InputPort and OutputPort.
+  * Added get_port, get_input_port, get_output_port static methods to PimidiPy.
+  * Allow passing in an integer id to PimidiPy's open_input and open_output port.
+  * Fixed ProgramChangeEvent wrapper.
+
+ -- Giedrius Trainavičius <giedrius@blokas.io>  Tue, 17 Dec 2024 12:17:28 +0200
+
+
 pimidipy (0.1.1-1) UNRELEASED; urgency=low
 
   * Initial release as a Debian package.
