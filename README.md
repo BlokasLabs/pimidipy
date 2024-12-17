@@ -2,9 +2,9 @@
 
 `pimidipy` is a Python library developed by [**Blokas**](https://blokas.io/) for Linux ALSA that makes interacting with MIDI devices extremely simple, taking care of all the low-level details for you.
 
-If you're looking to expand your Raspberry Pi's MIDI capabilities, check out [**Pimidi**](https://blokas.io/pimidi/) by Blokas. Pimidi is a hardware add-on that adds 2 MIDI inputs and 2 MIDI outputs to your Raspberry Pi, and it can be stacked up to 4 units high for even more I/O.
-
 Check out the full online documentation of `pimidipy` at https://blokas.io/pimidi/docs/pimidipy/.
+
+If you're looking to expand your Raspberry Pi's MIDI capabilities, check out [**Pimidi**](https://blokas.io/pimidi/) HAT by Blokas. Pimidi is a hardware add-on that adds 2 MIDI inputs and 2 MIDI outputs to your Raspberry Pi, and it can be stacked up to 4 units high for even more MIDI I/O.
 
 ## Features
 
@@ -66,6 +66,6 @@ We warmly invite the open-source community to help us improve and extend the `pi
 
 5. **Submit your changes** as a pull request.
 
-6. Join the conversation in our [community forums](https://community.blokas.io) to discuss ideas, get support, or share your projects.
+6. Join the conversation in our [community forums](https://community.blokas.io/c/pimidi/26) to discuss ideas, get support, or share your projects.
 
 Your contributions will help make `pimidipy` even better for everyone. Thank you for being part of the Blokas community!
