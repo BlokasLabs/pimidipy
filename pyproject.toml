@@ -19,7 +19,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pimidipy"
-version = "0.1.2.post3"
+version = "0.1.2.post4"
 authors = [
 	{ name="Blokas", email="hello@blokas.io" },
 ]
