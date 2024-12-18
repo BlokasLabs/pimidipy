@@ -1,6 +1,6 @@
 # pimidipy
 
-![pimidipy](pimidipy.png)
+<img align="right" src="pimidipy.png" style="width:15%; height:auto;">
 
 `pimidipy` is a Python library developed by [**Blokas**](https://blokas.io/) for Linux ALSA that makes interacting with MIDI devices extremely simple, taking care of all the low-level details for you.
 
