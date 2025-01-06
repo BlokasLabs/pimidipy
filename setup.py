@@ -17,6 +17,7 @@ from setuptools import find_packages, setup
 
 setup(
 	name='pimidipy',
+	version='0.1.2',
 	packages=find_packages(include=['pimidipy']),
 	install_requires=['alsa-midi', 'python-dotenv']
 )
